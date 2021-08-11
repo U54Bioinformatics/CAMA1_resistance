@@ -39,8 +39,8 @@ row.names(seu@meta.data) <- seu@meta.data$Cell.orig
 
 DimPlot(seu, reduction = "umap", 
         group.by = "Marker_groups", 
-        label=FALSE, repel=TRUE, pt.size = 0.25, raster = TRUE) + 
-  myTheme
+        label=FALSE, repel=TRUE, raster = FALSE) +
+  myTheme 
 
 FeaturePlot(seu, features = c("mCherry", "mVenus"),
             order=TRUE, pt.size=0.75, raster = TRUE)
@@ -48,9 +48,6 @@ FeaturePlot(seu, features = c("mCherry", "mVenus"),
 ################################################################################
 ## Differential expression between mono and cocultured sensitive cells
 ################################################################################
-facilitation.de.markers <- FindMarkers(seu, ident.1 = "Sensitive (monoculture)",
-                                       ident.2 = "Sensitive (coculture)")
-
 # Ran once for every expressed gene; now just read the cached version
 facilitation.de.markers <- FindMarkers(seu, ident.1 = "Sensitive (monoculture)",
                                        ident.2 = "Sensitive (coculture)", 
@@ -59,15 +56,14 @@ facilitation.de.markers <- FindMarkers(seu, ident.1 = "Sensitive (monoculture)",
 facilitation.de.markers <- facilitation.de.markers %>%
   mutate(Significant = ifelse(p_val_adj<0.05, "Yes", "No")) %>%
   rownames_to_column(var = "Gene")
-
 write.table(facilitation.de.markers, file = "facilitation.de.markers.txt", 
             row.names = FALSE, quote = FALSE, sep = "\t")
+
 facilitation.de.markers <- read.table("~/Desktop/Facilitation/facilitation.de.markers.txt", 
                                       header = TRUE, sep = "\t")
 
 facilitation.de.markers <- facilitation.de.markers %>%
   mutate(TopGenes = ifelse(abs(avg_log2FC)>0.75 & Significant == "Yes", "Yes", "No"))
-
 
 ggplot(facilitation.de.markers, aes(x=-avg_log2FC, y = -log10(p_val),
                                     color = Significant)) + 
@@ -87,15 +83,8 @@ ggplot(facilitation.de.markers, aes(x=-avg_log2FC, y = -log10(p_val),
 ## Exploring mechanistic components of estradiol synthesis
 ################################################################################
 
-renaGenes <- c("HSD17B1", "HSD17B2", "HSD17B4", "HSD17B5", 
-               "HSD17B6", "HSD17B7", "HSD3B1", "CYP17A1", 
-               "CYP19A1", "CYP1B1", "CYP17A2")
-
 geneSet <- read.table("~/Desktop/Facilitation/geneset.txt", header = TRUE,
                       sep = "\t")
-
-FeaturePlot(seu, features = geneSet$KEGG_STEROID_HORMONE_BIOSYNTHESIS,
-            order=TRUE, pt.size=0.75, raster = TRUE)
 
 seu_subset <- subset(x = seu, subset = Marker_groups != "GV014_nomarker")
 
@@ -112,20 +101,25 @@ DotPlot(object = seu_subset,
 
 cutDown <- c("HSD17B1", "HSD17B8", "SULT2B1")
 
-VlnPlot(object = seu_subset, features = cutDown) +
-  myTheme
+RidgePlot(object = seu_subset, features = cutDown) &
+  myTheme &
+  scale_fill_npg()
 
+VlnPlot(seu_subset, features = cutDown, pt.size = 0.01)
 
-
-
-
+DimPlot(seu_subset, reduction = "umap", 
+        group.by = "Marker_groups", 
+        label=FALSE, repel=TRUE, raster = FALSE) &
+  myTheme &
+  scale_color_npg()
 
 ################################################################################
 ## Assessing proliferation pathway activity across sensitivity and culture conditions
 ################################################################################
 
-pathways <- readRDS("VG_CAMA1_D11_ALL_10x.zinbwave.normalized.ssGSEA.scores.RDS")
-write.table(pathways, file = "full_pathways.txt", append = FALSE, quote = FALSE, row.names = FALSE, col.names = TRUE)
+pathways <- readRDS("~/Desktop/Facilitation/VG_CAMA1_D11_ALL_10x.zinbwave.normalized.ssGSEA.scores.RDS")
+# Just for easy access.
+#write.table(pathways, file = "full_pathways.txt", append = FALSE, quote = FALSE, row.names = FALSE, col.names = TRUE)
 
 pathwayList <- c("BIOCARTA_CELLCYCLE_PATHWAY", "REACTOME_CELL_CYCLE", "KEGG_CELL_CYCLE",
                  "WHITFIELD_CELL_CYCLE_S", "WHITFIELD_CELL_CYCLE_LITERATURE")
