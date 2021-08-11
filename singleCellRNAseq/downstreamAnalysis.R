@@ -33,6 +33,7 @@ myTheme <- theme_bw() +
 seu <- readRDS("~/Desktop/Facilitation/VG_CAMA1_D11_ALL_10x_Seurat_2kgenes_vst_cc.rds")
 meta <- read.table("~/Desktop/Facilitation/VG_CAMA1_D11_ALL_10x_cell_metadata.UMAPcluster.marker_genes.txt",
                    header = TRUE, sep = "\t")
+
 seu@meta.data <- meta
 row.names(seu@meta.data) <- seu@meta.data$Cell.orig
 
@@ -123,12 +124,39 @@ VlnPlot(object = seu_subset, features = cutDown) +
 ## Assessing proliferation pathway activity across sensitivity and culture conditions
 ################################################################################
 
+pathways <- readRDS("VG_CAMA1_D11_ALL_10x.zinbwave.normalized.ssGSEA.scores.RDS")
+write.table(pathways, file = "full_pathways.txt", append = FALSE, quote = FALSE, row.names = FALSE, col.names = TRUE)
 
+pathwayList <- c("BIOCARTA_CELLCYCLE_PATHWAY", "REACTOME_CELL_CYCLE", "KEGG_CELL_CYCLE",
+                 "WHITFIELD_CELL_CYCLE_S", "WHITFIELD_CELL_CYCLE_LITERATURE")
 
+prolif_pathways <- pathways %>% 
+  filter(`Gene Set` %in% pathwayList) %>% 
+  pivot_longer(2:ncol(pathways), 
+               names_to = "Cell.orig", values_to = "Score")
 
+prolif_pathways <- left_join(prolif_pathways, seu@meta.data) %>% 
+  select(`Gene Set`, Cell.orig, Score, Sample, Marker_genes, Marker_groups,
+         Marker_genes1, Marker_groups1)
 
+prolif_pathways$Marker_groups <- factor(prolif_pathways$Marker_groups,
+                                        levels = c("Sensitive (monoculture)", 
+                                                   "Sensitive (coculture)",
+                                                   "Resistant (coculture)", 
+                                                   "Resistant (monoculture)"))
 
+ggplot(prolif_pathways, aes(x=`Gene Set`, y = Score, color = Marker_groups)) + 
+  geom_boxplot(outlier.shape=NA, alpha = 0.2, color="black", aes(fill = Marker_groups)) +
+  geom_point(size = 0.7, position=position_jitterdodge(jitter.width = 0.1)) + 
+  stat_compare_means(aes(group = Marker_groups), label = "p.signif") +
+  myTheme + 
+  scale_color_npg()
 
+results <- prolif_pathways %>%
+  group_by(`Gene Set`) %>%
+  do(w = kruskal.test(Score~Marker_groups, data=.)) %>%
+  summarise(`Gene Set`, KW = w$p.value) %>%
+  mutate(FDR = p.adjust(KW))
 
 
 
