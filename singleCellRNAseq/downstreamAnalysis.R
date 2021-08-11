@@ -1,9 +1,7 @@
-#!/home/bdecato/miniconda3/envs/r4/lib/R/bin/Rscript
 #
-# downstreamModeling.R
+# downstreamAnalysis.R
 #
-# Reproduce some plots from Vince and Jinfeng's analysis and address reviewer
-# questions regarding mechanism of facilitation.
+# Analysis to explore mechanisms of facilitation in single-cell RNA seq data.
 #
 # @author Ben Decato
 
@@ -32,8 +30,9 @@ myTheme <- theme_bw() +
 ################################################################################
 # Read and integrate data; high level UMAP plots
 ################################################################################
-seu <- readRDS("~/Downloads/VG_CAMA1_D11_ALL_10x_Seurat_2kgenes_vst_cc.rds")
-meta <- read.table("~/Downloads/VG_CAMA1_D11_ALL_10x_cell_metadata.UMAPcluster.marker_genes.txt", header = TRUE, sep = "\t")
+seu <- readRDS("~/Desktop/Facilitation/VG_CAMA1_D11_ALL_10x_Seurat_2kgenes_vst_cc.rds")
+meta <- read.table("~/Desktop/Facilitation/VG_CAMA1_D11_ALL_10x_cell_metadata.UMAPcluster.marker_genes.txt",
+                   header = TRUE, sep = "\t")
 seu@meta.data <- meta
 row.names(seu@meta.data) <- seu@meta.data$Cell.orig
 
@@ -48,24 +47,29 @@ FeaturePlot(seu, features = c("mCherry", "mVenus"),
 ################################################################################
 ## Differential expression between mono and cocultured sensitive cells
 ################################################################################
-facilitation.de.markers <- FindMarkers(seu, ident.1 = "Sensitive (monoculture)", ident.2 = "Sensitive (coculture)")
+facilitation.de.markers <- FindMarkers(seu, ident.1 = "Sensitive (monoculture)",
+                                       ident.2 = "Sensitive (coculture)")
 
 # Ran once for every expressed gene; now just read the cached version
-facilitation.de.markers <- FindMarkers(seu, ident.1 = "Sensitive (monoculture)", ident.2 = "Sensitive (coculture)", 
+facilitation.de.markers <- FindMarkers(seu, ident.1 = "Sensitive (monoculture)",
+                                       ident.2 = "Sensitive (coculture)", 
                                min.cells.group = 1, min.cells.feature = 1,
                                min.pct = 0, logfc.threshold = 0, only.pos = FALSE)
 facilitation.de.markers <- facilitation.de.markers %>%
   mutate(Significant = ifelse(p_val_adj<0.05, "Yes", "No")) %>%
   rownames_to_column(var = "Gene")
 
-write.table(facilitation.de.markers, file = "facilitation.de.markers.txt", row.names = FALSE, quote = FALSE, sep = "\t")
-#facilitation.de.markers <- read.table("facilitation.de.markers.txt", header = TRUE, sep = "\t")
+write.table(facilitation.de.markers, file = "facilitation.de.markers.txt", 
+            row.names = FALSE, quote = FALSE, sep = "\t")
+facilitation.de.markers <- read.table("~/Desktop/Facilitation/facilitation.de.markers.txt", 
+                                      header = TRUE, sep = "\t")
 
 facilitation.de.markers <- facilitation.de.markers %>%
   mutate(TopGenes = ifelse(abs(avg_log2FC)>0.75 & Significant == "Yes", "Yes", "No"))
 
 
-ggplot(facilitation.de.markers, aes(x=-avg_log2FC, y = -log10(p_val), color = Significant)) + 
+ggplot(facilitation.de.markers, aes(x=-avg_log2FC, y = -log10(p_val),
+                                    color = Significant)) + 
   geom_point(aes(size=abs(pct.2-pct.1))) +
   xlab("log2FC (+ = higher in coculture)") +
   ylab("-log10(p)") +
@@ -86,15 +90,28 @@ renaGenes <- c("HSD17B1", "HSD17B2", "HSD17B4", "HSD17B5",
                "HSD17B6", "HSD17B7", "HSD3B1", "CYP17A1", 
                "CYP19A1", "CYP1B1", "CYP17A2")
 
-FeaturePlot(seu, features = renaGenes,
+geneSet <- read.table("~/Desktop/Facilitation/geneset.txt", header = TRUE,
+                      sep = "\t")
+
+FeaturePlot(seu, features = geneSet$KEGG_STEROID_HORMONE_BIOSYNTHESIS,
             order=TRUE, pt.size=0.75, raster = TRUE)
 
-Idents(seu) <- "Marker_groups"
-levels(seu) <- c("Sensitive (monoculture)", "Sensitive (coculture)", "Resistant (coculture)", "Resistant (monoculture)", "GV014_nomarker")
-DotPlot(object = seu, features = renaGenes) +
-  myTheme
+seu_subset <- subset(x = seu, subset = Marker_groups != "GV014_nomarker")
 
-VlnPlot(object = seu, features = renaGenes) +
+Idents(seu_subset) <- "Marker_groups"
+levels(seu_subset) <- c("Sensitive (monoculture)", "Sensitive (coculture)",
+                        "Resistant (coculture)", "Resistant (monoculture)")
+DotPlot(object = seu_subset, 
+        features = geneSet$KEGG_STEROID_HORMONE_BIOSYNTHESIS) +
+  coord_flip() + 
+  xlab("KEGG Steroid Hormone Biosynthesis Pathway Components") + 
+  ylab("") +
+  myTheme +
+  scale_fill_npg()
+
+cutDown <- c("HSD17B1", "HSD17B8", "SULT2B1")
+
+VlnPlot(object = seu_subset, features = cutDown) +
   myTheme
 
 
