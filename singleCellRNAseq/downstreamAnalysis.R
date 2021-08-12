@@ -22,7 +22,7 @@ print(paste("Working directory:", getwd()))
 
 # Set up my ggplot theme for use with all visualizations
 myTheme <- theme_bw() +
-  theme(text = element_text(size=16), axis.text = element_text(size = 14),
+  theme(text = element_text(size=12), axis.text = element_text(size = 12),
         axis.text.x = element_text(angle = 45, hjust = 1),
         strip.background = element_blank(),
         strip.placement = "outside")
