@@ -114,6 +114,10 @@ DimPlot(seu_subset, reduction = "umap",
   scale_color_npg()
 
 ################################################################################
+## Pull out dotplot components for graph/network figure
+################################################################################
+
+################################################################################
 ## Assessing proliferation pathway activity across sensitivity and culture conditions
 ################################################################################
 
